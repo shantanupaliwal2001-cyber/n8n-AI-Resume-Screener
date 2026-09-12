@@ -1,0 +1,975 @@
+{
+  "name": "Resume_Parser",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 12
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "0376e30b-24ec-417e-87b2-f9f84ce5b10a",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "fileSelector": "/Users/shantanupaliwal/Desktop/ResumeParser/Resume/Incoming/*",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1.1,
+      "position": [
+        448,
+        -144
+      ],
+      "id": "7ad84e30-63fa-45ae-8b28-a504d7b1198e",
+      "name": "Read/Write Files from Disk"
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        672,
+        -144
+      ],
+      "id": "325de28e-db75-418f-be84-65a2a868712c",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "fileSelector": "/Users/shantanupaliwal/Desktop/ResumeParser/JD/*",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1.1,
+      "position": [
+        224,
+        144
+      ],
+      "id": "d783649a-d302-4aae-9c1f-ba8d3a08eb68",
+      "name": "Read/Write Files from Disk1"
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        448,
+        144
+      ],
+      "id": "898bef60-b95e-4ad3-bee8-d493553f4d80",
+      "name": "Extract from File1"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an expert Hiring Manager evaluating a candidate for an open requisition.\nI will provide you with the required Job Description JSON and the candidate's Resume JSON.\n\nCompare the two and score the candidate out of 20 points for each of the 5 sections (Experience, Education, Technical Skills, Qualifications, Projects).\n\nCRITICAL RULE (Anti-Keyword Stuffing): Cross-verify the candidate's \"technical_skills\". If a candidate lists a skill but does not explicitly show evidence of applying it within their \"experience\" or \"projects\" sections, heavily deduct points for that skill.\n\nBase your grading entirely on how well the candidate's background fulfills the specific requirements outlined in the Job Description provided.\n\nReturn a strict JSON object with these exact keys:\n\n\"experience_score\" (0-20)\n\n\"education_score\" (0-20)\n\n\"skills_score\" (0-20)\n\n\"qualifications_score\" (0-20)\n\n\"projects_score\" (0-20)\n\n\"fitment_score\" (The total sum of the 5 scores, out of 100)\n\n\"summary\" (A 2-sentence explanation of your grading, explicitly stating what the candidate matched or lacked)\n\nReturn ONLY valid JSON.\n\nRequired Job Description:\n{{ JSON.stringify($('Clean JD JSON').item.json) }}\n\nCandidate Resume:\n{{ JSON.stringify($json) }}",
+        "messages": {
+          "messageValues": []
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        2496,
+        -96
+      ],
+      "id": "c4df5fea-e186-4942-b44f-b312f5c8f65a",
+      "name": "Basic LLM Chain",
+      "retryOnFail": false,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "model": "qwen2.5:7b",
+        "options": {
+          "temperature": 0.1
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmOllama",
+      "typeVersion": 1,
+      "position": [
+        2576,
+        128
+      ],
+      "id": "fb016c15-cdcd-4ad2-b218-a3ed34beb039",
+      "name": "Ollama Model",
+      "credentials": {
+        "ollamaApi": {
+          "id": "KEqnwM3wa4FxYjqZ",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "42fd0cb4-1d33-47d9-a17f-ca6cbec2b77d",
+              "name": "resume_text",
+              "value": "={{ $json.text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        960,
+        -144
+      ],
+      "id": "478a1f87-e011-4a74-b806-efc19707eba8",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f349edc3-801e-4b54-8495-550089181a2a",
+              "name": "jd_text",
+              "value": "={{ $json.text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        672,
+        144
+      ],
+      "id": "91f0bec9-27cb-406a-abb3-2d769cbecaec",
+      "name": "Edit Fields1"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1ltYKi5CT4NJow_2hP-6HHtxe144JcYR9QmKpA7jpcLw/edit?pli=1&gid=0#gid=0",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Sheet1",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "   Candidate Name ": "={{ $('Read/Write Files from Disk').item.json.fileName }}",
+            "Fitment Score ": "={{ $json.full_grading.fitment_score }}",
+            "Verdict": "={{ $json.verdict }}",
+            "Summary": "={{ $json.summary }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "   Candidate Name ",
+              "displayName": "   Candidate Name ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Fitment Score ",
+              "displayName": "Fitment Score ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Verdict",
+              "displayName": "Verdict",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Skills Matched",
+              "displayName": "Skills Matched",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Skills Missing",
+              "displayName": "Skills Missing",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Summary",
+              "displayName": "Summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        3296,
+        -288
+      ],
+      "id": "ee3a72e1-f7c3-4309-a740-950806e1f150",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "MvzXRnoVThhEC8OE",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "1159162866",
+        "text": "=Name: {{ $json['   Candidate Name '] }}\n\nThe model scored this candidate{{ $json['Fitment Score '] }} /100 ({{ $json.Verdict }}),\nPlease review manually before trusting this score.",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        3520,
+        32
+      ],
+      "id": "29a620d0-dfda-45f3-bd9b-c18ab0bac66b",
+      "name": "Send a text message",
+      "webhookId": "96b76e29-63e9-45cc-9c14-b7cfe8065c1f",
+      "retryOnFail": true,
+      "credentials": {
+        "telegramApi": {
+          "id": "i8sVWM0pIn6QF7Yg",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1696,
+        96
+      ],
+      "id": "4d3b11cd-4f7d-4cdc-b5b7-c0d71e261df5",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Get the raw text from the Grader LLM\nlet rawText = $input.first().json.text || \"\";\n\n// 2. Strip the markdown backticks\nlet cleanText = rawText.replace(/```json/gi, \"\").replace(/```/gi, \"\").trim();\n\nlet graderResult;\ntry {\n    graderResult = JSON.parse(cleanText);\n} catch (error) {\n    graderResult = { fitment_score: 0, summary: \"Error parsing LLM grading.\" };\n}\n\n// 3. Generate the Verdict\nlet score = graderResult.fitment_score || 0;\nlet verdict = \"Weak Fit\";\n\nif (score >= 75) {\n    verdict = \"Strong Fit\";\n} else if (score >= 50) {\n    verdict = \"Potential Fit\";\n}\n\n// 4. Output a perfectly clean package for Google Sheets\nreturn [{\n    json: {\n        score: score,\n        verdict: verdict,\n        summary: graderResult.summary || \"\",\n        full_grading: graderResult\n    }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2848,
+        -96
+      ],
+      "id": "407522d6-4d4c-445a-9aea-0fadd2d7745f",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "b318c21e-d0cb-4e38-a076-57736629273f",
+              "leftValue": "={{ $json.full_grading.fitment_score }}",
+              "rightValue": 45,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        3072,
+        -96
+      ],
+      "id": "dba5478a-8c85-413c-9485-804ca4186327",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1ltYKi5CT4NJow_2hP-6HHtxe144JcYR9QmKpA7jpcLw/edit?pli=1&gid=0#gid=0",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Flagged ",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "   Candidate Name ": "={{ $('Read/Write Files from Disk').item.json.fileName }}",
+            "Fitment Score ": "={{ $json.score }}",
+            "Verdict": "={{ $json.verdict }}",
+            "Summary": "={{ $json.summary }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "   Candidate Name ",
+              "displayName": "   Candidate Name ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Fitment Score ",
+              "displayName": "Fitment Score ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Verdict",
+              "displayName": "Verdict",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Skills Matched",
+              "displayName": "Skills Matched",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Skills Missing",
+              "displayName": "Skills Missing",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Summary",
+              "displayName": "Summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        3296,
+        -96
+      ],
+      "id": "191f25fe-24a6-4494-a828-cc3fc91a637f",
+      "name": "Append row in sheet1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "MvzXRnoVThhEC8OE",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "1159162866",
+        "text": "=⚠️ FLAGGED FOR REVIEW: {{ $json['   Candidate Name '] }}\n\nThe model scored this candidate{{ $json['Fitment Score '] }} /100 ({{ $json.Verdict }}), but automated validation detected a likely domain mismatch\nPlease review manually before trusting this score.",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        3520,
+        224
+      ],
+      "id": "cff392f6-5ebb-43be-bfb8-8fe077353a67",
+      "name": "Send a text message1",
+      "webhookId": "d0bd8171-f9d8-4699-8adb-be60b9b39390",
+      "retryOnFail": true,
+      "credentials": {
+        "telegramApi": {
+          "id": "i8sVWM0pIn6QF7Yg",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineAll",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1472,
+        96
+      ],
+      "id": "f78d4c92-9c5f-4ab6-9994-aa7b4573f7f8",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "de68d761-4d0c-48b4-948b-9fed96c3aeb0",
+              "leftValue": "={{ $json.resume_text.length }}",
+              "rightValue": 50,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1248,
+        -144
+      ],
+      "id": "f9243f9b-a9f0-4de2-9371-7e53f13f99d8",
+      "name": "Check PDF Readability"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1ltYKi5CT4NJow_2hP-6HHtxe144JcYR9QmKpA7jpcLw/edit?pli=1&gid=0#gid=0",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Manual Review",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Name of the Document ": "={{ $('Read/Write Files from Disk').item.json.fileName }}"
+          },
+          "matchingColumns": [
+            "Name of the Document "
+          ],
+          "schema": [
+            {
+              "id": "Name of the Document ",
+              "displayName": "Name of the Document ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1472,
+        -192
+      ],
+      "id": "5ee6dabd-15da-4ea5-9c20-89c7309bc9ac",
+      "name": "Append row in sheet2",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "MvzXRnoVThhEC8OE",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an expert technical recruiter. Read the following raw Job Description text and extract the core requirements into a strict JSON format.\n\nYou must extract exactly these 5 sections:\n\n\"experience\": Years and type of experience required.\n\n\"education\": Degrees or academic background required.\n\n\"technical_skills\": Specific software, languages, or tools required.\n\n\"qualifications\": Certifications or soft skills required.\n\n\"projects\": Any specific portfolio items or project types required.\n\nReturn ONLY valid JSON. Do not include markdown formatting or conversational text.\n\nRaw Job Description:\n{{ $json.jd_text }}",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        896,
+        144
+      ],
+      "id": "e84fd5b7-1b27-41b7-a6c0-7bba75b8c7b3",
+      "name": "Basic LLM Chain1"
+    },
+    {
+      "parameters": {
+        "model": "qwen2.5:7b",
+        "options": {
+          "temperature": 0.1
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmOllama",
+      "typeVersion": 1,
+      "position": [
+        976,
+        384
+      ],
+      "id": "33195be2-9be4-4964-b455-88bc9d5a0c69",
+      "name": "Ollama Model1",
+      "credentials": {
+        "ollamaApi": {
+          "id": "KEqnwM3wa4FxYjqZ",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "let rawText = $input.first().json.text || \"\";\n\n// Strip the annoying markdown backticks that the LLM hallucinates\nlet cleanText = rawText.replace(/```json/gi, \"\").replace(/```/gi, \"\").trim();\n\ntry {\n    // Convert the clean string into a real JSON object\n    let parsedData = JSON.parse(cleanText);\n    return [ { json: parsedData } ];\n} catch (error) {\n    // If the LLM completely fails, output an empty structure so the loop doesn't crash\n    return [ { \n        json: { \n            \"experience\": {}, \n            \"education\": {}, \n            \"technical_skills\": {}, \n            \"qualifications\": {}, \n            \"projects\": {} \n        } \n    } ];\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1248,
+        144
+      ],
+      "id": "db1a8bcd-9323-4e0a-800b-aaa1a10eba5c",
+      "name": "Clean JD JSON"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an expert technical recruiter. Read the following raw candidate resume text and extract their background into a strict JSON format.\n\nYou must extract exactly these 5 sections based on the resume provided:\n\n\"experience\": The candidate's work history and years of experience.\n\n\"education\": Degrees or academic background.\n\n\"technical_skills\": Specific software, languages, or tools they know.\n\n\"qualifications\": Certifications or soft skills mentioned.\n\n\"projects\": Any specific portfolio items or projects listed.\n\nReturn ONLY valid JSON. Do not include markdown formatting or conversational text.\n\nRaw Resume:\n{{ $json.resume_text }}",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        1920,
+        -96
+      ],
+      "id": "feefe3d6-e90c-4bef-9033-f67f3b2d3d3f",
+      "name": "Basic LLM Chain2"
+    },
+    {
+      "parameters": {
+        "model": "qwen2.5:7b",
+        "options": {
+          "temperature": 0.1
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmOllama",
+      "typeVersion": 1,
+      "position": [
+        2000,
+        128
+      ],
+      "id": "6649bec6-21cb-47cb-bffa-56efc72f99f8",
+      "name": "Ollama Model2",
+      "credentials": {
+        "ollamaApi": {
+          "id": "KEqnwM3wa4FxYjqZ",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "let rawText = $input.first().json.text || \"\";\nlet cleanText = rawText.replace(/```json/gi, \"\").replace(/```/gi, \"\").trim();\n\ntry {\n    return [ { json: JSON.parse(cleanText) } ];\n} catch (error) {\n    return [ { json: { \"experience\": {}, \"education\": {}, \"technical_skills\": {}, \"qualifications\": {}, \"projects\": {} } } ];\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2272,
+        -96
+      ],
+      "id": "9f390021-d18e-4914-b9a4-ef5330d0a185",
+      "name": "Code in JavaScript1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Read/Write Files from Disk",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Read/Write Files from Disk1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read/Write Files from Disk": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read/Write Files from Disk1": {
+      "main": [
+        [
+          {
+            "node": "Extract from File1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File1": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Check PDF Readability",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Basic LLM Chain2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a text message": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Append row in sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet1": {
+      "main": [
+        [
+          {
+            "node": "Send a text message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a text message1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check PDF Readability": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Append row in sheet2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain1": {
+      "main": [
+        [
+          {
+            "node": "Clean JD JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean JD JSON": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain2": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain2",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "080ec8f1-0417-4196-95db-62266aa6702e",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "def592b3461517c8096cab545baa9eca144d480c2bf11463067e8f400bb3ec2b"
+  },
+  "nodeGroups": [],
+  "id": "49gu3pzvZQoyi60y",
+  "tags": []
+}
