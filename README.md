@@ -32,3 +32,10 @@ This production-grade pipeline solves both issues. It standardizes the grading p
 2. Open your n8n instance and click "Import from File".
 3. Configure your local Google Sheets and Telegram credentials.
 4. Drop your candidate PDFs into the designated local folder and hit Execute!
+
+## Limitations & Known Constraints
+As with any local-LLM architecture, there are inherent hardware and model constraints:
+
+*   **Processing Speed:** To prevent local hardware from crashing, the `Process Resumes One-by-One` loop runs sequentially. While this is highly stable, it means processing a batch of 50 resumes takes significantly longer than asynchronous API calls to cloud models.
+*   **Context Window Limits:** The local 7B model has a restricted context window. Unusually long resumes (5+ pages) or heavily graphic multi-column PDFs may result in text truncation or degraded JSON extraction.
+*   **False Negatives on Errors:** The `LLM Output Parser` defaults to a score of 0 if the LLM output is entirely unparseable. While this prevents pipeline crashes, it necessitates human review for edge-case errors.
