@@ -1,41 +1,45 @@
 # AI-Powered Resume Screening Pipeline
 
-An automated, defensive data pipeline built in n8n that screens batch resumes, catches "keyword stuffers," and operates entirely on local hardware without crashing.
+An n8n workflow that screens a batch of resumes against a job description, using a local AI model — no API costs, runs on my own machine.
 
-## The Business Problem
-Recruiters spend countless hours manually scanning resumes, often falling victim to candidates who stuff their resumes with keywords but lack actual experience. Furthermore, using AI to solve this often results in exorbitant API costs, or if run locally, severe hardware bottlenecks. 
+## Why I built this
 
-This production-grade pipeline solves both issues. It standardizes the grading process to save recruiter time, and uses a highly optimized architecture to run locally on a 7B LLM without frying the CPU.
+Recruiters spend a lot of time manually going through resumes, and it's easy to get fooled by someone who stuffs their resume with keywords but doesn't actually have the experience. I wanted to automate that first-pass screening — but most AI tools either cost a lot in API fees, or if you run them locally to save money, your computer can't handle it well.
 
-## Architecture & Technical Highlights
+So this does both: it's free to run (local model, not a paid API), but I built it carefully so it doesn't crash or slow my laptop to a crawl.
 
-*   **Compute Optimization:** The Job Description (JD) rubric is extracted outside the main loop just once, acting as a static baseline. This saves roughly 80% on token generation costs and keeps the local model breathing easily.
-*   **Defensive Routing (Check PDF Readability):** Candidates often upload unreadable image-based PDFs. A pre-flight sanity check detects these and routes them straight to human review, preventing wasted AI compute.
-*   **Map-Reduce AI Flow:** Inside the loop, cognitive load is split across a dual-LLM architecture:
-    *   *AI #1 (Extract Resume JSON):* Acts as a data structurer, turning messy PDF text into strict JSON.
-    *   *AI #2 (The Grader LLM):* Acts as the hiring manager, ruthlessly cross-verifying a candidate's claimed skills against the evidence in their actual work experience.
-*   **Data Normalization (LLM Output Parser):** Local models occasionally hallucinate markdown tags (like ````json````) or conversational text. I built custom JavaScript try...catch blocks to act as a "Blast Shield," actively stripping this out so the pipeline never crashes mid-batch.
+## How it actually works
 
-## The Pipeline Flow
-1. **Ingestion:** Read Candidate Resumes & Map Resume Text.
-2. **Validation:** Unreadable files are logged; valid files pass to the Combine JD & Resumes merge node.
-3. **Sequential Processing:** The Process Resumes One-by-One loop feeds data to the local LLMs sequentially to prevent memory overloads.
-4. **Output:** The parser translates numerical scores into deterministic verdicts (Strong/Potential/Weak Fit) and pushes the final payload to Google Sheets and Telegram.
+- **The job description only gets read once per batch, not once per candidate.** It's the same JD for every resume in that run, so there's no reason to re-process it 50 times if I'm screening 50 resumes. That alone cuts down a good chunk of unnecessary AI calls.
+- **Before any AI touches a resume, I check if the file is even readable.** Some PDFs are just scanned images with no real text in them. If a resume comes back basically empty, it gets logged separately instead of wasting an AI call trying to grade nothing.
+- **Grading happens in two steps, using two AI calls per candidate.** First, one AI call turns the messy resume text into clean, structured data (their experience, education, skills, etc.). Then a second AI call acts like a hiring manager and grades that structured data against the job description — and specifically checks whether someone who *lists* a skill actually shows they've *used* it, so keyword-stuffing doesn't work.
+- **The AI's output isn't always clean.** Sometimes it wraps its answer in extra formatting, or the response gets cut off. I wrote code that catches that and cleans it up so one messy response doesn't break the whole run.
 
-## Tech Stack
-*   **Orchestration:** n8n (Node.js)
-*   **AI/LLM:** Ollama (Local 7B Model)
-*   **Integrations:** Google Workspace, Telegram API, Local File System Parsing
+## The part I'm actually proud of
 
-## How to Run
-1. Clone this repository and download Resume_Parser.json.
-2. Open your n8n instance and click "Import from File".
-3. Configure your local Google Sheets and Telegram credentials.
-4. Drop your candidate PDFs into the designated local folder and hit Execute!
+When I first got this working, I went back and tried to break it on purpose — and found a real problem: if something went wrong with the AI (a bad response, a call that failed), the pipeline was quietly treating that as if the candidate genuinely scored a 0 and was a "Weak Fit." There was no way to tell the difference between "this person isn't a good fit" and "something technically broke." That's a real risk — a good candidate could get auto-rejected for the wrong reason, and nobody would know to check.
 
-## Limitations & Known Constraints
-As with any local-LLM architecture, there are inherent hardware and model constraints:
+So I fixed that. Now, if something fails, it doesn't get a fake score — it gets flagged separately for manual review, with a note on *why* it failed, and it gets sent to me over Telegram so I actually see it. And if I already know the resume didn't come through properly, I skip the grading step entirely instead of wasting an AI call grading empty data.
 
-*   **Processing Speed:** To prevent local hardware from crashing, the `Process Resumes One-by-One` loop runs sequentially. While this is highly stable, it means processing a batch of 50 resumes takes significantly longer than asynchronous API calls to cloud models.
-*   **Context Window Limits:** The local 7B model has a restricted context window. Unusually long resumes (5+ pages) or heavily graphic multi-column PDFs may result in text truncation or degraded JSON extraction.
-*   **False Negatives on Errors:** The `LLM Output Parser` defaults to a score of 0 if the LLM output is entirely unparseable. While this prevents pipeline crashes, it necessitates human review for edge-case errors.
+I also made sure one bad resume in a batch doesn't stop the whole thing — if candidate #23 out of 50 has a problem, #24 through #50 still get processed. It's flagged, and the batch keeps going.
+
+## How it flows, start to finish
+
+1. Read all the resumes and the job description.
+2. Filter out anything unreadable before it reaches the AI.
+3. Go through the resumes one at a time (kept sequential on purpose — running things in parallel on my local hardware would overload it).
+4. For each one: extract their info, grade it against the job, and log the result — either a real score and verdict, or a manual-review flag if something went wrong.
+5. Everything lands in a Google Sheet, with a Telegram alert for anything that needs a human to look at it.
+
+## What I'm using
+
+- **n8n** to build and run the whole workflow
+- **Ollama**, running a local model, so there's no per-call API cost
+- **Google Sheets** and **Telegram** for output and alerts
+
+## What I'd still like to improve
+
+- A 7B parameter local model has real limits under heavier load — larger batches or longer resumes push it toward the truncation and context-window issues mentioned above, so this isn't yet built to scale past a local, moderate-volume use case
+- Right now, running the same batch of resumes twice would create duplicate entries instead of recognizing repeats — I'd want to fix that with some kind of duplicate check.
+- There's a narrow edge case where, if the AI's response is technically valid but happens to be missing the score itself, it could still slip through as a 0 instead of getting flagged — Need to work on this.
+- I made unreadable PDFs log to a separate sheet instead of also pinging me on Telegram — on purpose, since as the person using this, I'd rather check that log once in a while than get interrupted for every unreadable file.
